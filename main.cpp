@@ -9,6 +9,10 @@ and may not be redistributed without written permission.*/
 #include <stdio.h>
 #include <string>
 #include <sstream>
+#include <vector>
+
+#include "Texture.h"
+#include "Bullet.h"
 
 //Screen dimension constants
 const int SCREEN_WIDTH = 1000;
@@ -16,7 +20,7 @@ const int SCREEN_HEIGHT = 680;
 
 enum direction_t {left, right, stationary};
 enum state_t {start, game, game_over};
-enum state_t game_state;
+state_t game_state;
 
 //The window we'll be rendering to
 SDL_Window* gWindow = NULL;
@@ -33,6 +37,15 @@ Mix_Chunk *gShipHit = NULL;
 Mix_Chunk *gInvaderBullet = NULL;
 Mix_Chunk *gInvaderHit = NULL;
 
+//Scene sprites
+Texture gSpriteSheetTexture;
+// Background
+Texture gBackgroundTexture;
+//Text texture
+Texture gTitleTexture;
+Texture gOtherTextTexture;
+Texture gGameInfo;
+
 //Starts up SDL and creates window
 bool init();
 
@@ -44,70 +57,68 @@ void close();
 
 bool init()
 {
-	//Initialization flag
-	bool success = true;
-
 	//Initialize SDL
 	if( SDL_Init( SDL_INIT_VIDEO ) < 0 ) {
 		printf( "SDL could not initialize! SDL_Error: %s\n", SDL_GetError() );
-		success = false;
-	} else {
-		//Set texture filtering to linear
-		if( !SDL_SetHint( SDL_HINT_RENDER_SCALE_QUALITY, "1" ) ) {
-			printf( "Warning: Linear texture filtering not enabled!" );
-		}
+		return false;
+	} 
 
-		//Create window
-		gWindow = SDL_CreateWindow( "Space Invaders", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_SHOWN );
-		if( gWindow == NULL ) {
-			printf( "Window could not be created! SDL_Error: %s\n", SDL_GetError() );
-			success = false;
-		} else {
-			//Create renderer for window
-			gRenderer = SDL_CreateRenderer( gWindow, -1, SDL_RENDERER_ACCELERATED );
-			if( gRenderer == NULL ) {
-				printf( "Renderer could not be created! SDL Error: %s\n", SDL_GetError() );
-				success = false;
-			} else {
-				//Initialize renderer color
-				SDL_SetRenderDrawColor( gRenderer, 0xFF, 0xFF, 0xFF, 0xFF );
-
-				//Initialize PNG loading
-				int imgFlags = IMG_INIT_PNG;
-				if( !( IMG_Init( imgFlags ) & imgFlags ) ) {
-					printf( "SDL_image could not initialize! SDL_image Error: %s\n", IMG_GetError() );
-					success = false;
-				} else {
-					 //Initialize SDL_ttf
-					if( TTF_Init() == -1 ) {
-						printf( "SDL_ttf could not initialize! SDL_ttf Error: %s\n", TTF_GetError() );
-						success = false;
-					} else {
-						//Get window surface
-						gScreenSurface = SDL_GetWindowSurface( gWindow );
-						if ( SDL_Init( SDL_INIT_AUDIO ) < 0 ) {
-							printf( "SDL could not initialize! SDL Error: %s\n", SDL_GetError() );
-							success = false;
-						} else {
-							 //Initialize SDL
-							if( Mix_OpenAudio( 44100, MIX_DEFAULT_FORMAT, 2, 2048 < 0 )){
-								printf( "SDL_mixer could not initialize! SDL_mixer Error: %s\n", Mix_GetError() );
-								success = false;
-							} else {				
-								 //Initialize SDL_mixer
-								if (!loadMedia() ){
-									printf( "Failed to load media!\n" );
-									success = false;
-								}
-							}
-						}
-					}
-				}
-			}
-		}
+	//Set texture filtering to linear
+	if( !SDL_SetHint( SDL_HINT_RENDER_SCALE_QUALITY, "1" ) ) {
+		printf( "Warning: Linear texture filtering not enabled!" );
+		return false;
 	}
 
-	return success;
+	//Create window
+	gWindow = SDL_CreateWindow( "Space Invaders", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_SHOWN );
+	if( gWindow == NULL ) {
+		printf( "Window could not be created! SDL_Error: %s\n", SDL_GetError() );
+		return false;
+	}
+
+	//Create renderer for window
+	gRenderer = SDL_CreateRenderer( gWindow, -1, SDL_RENDERER_ACCELERATED );
+	if( gRenderer == NULL ) {
+		printf( "Renderer could not be created! SDL Error: %s\n", SDL_GetError() );
+		return false;
+	} 
+
+	//Initialize renderer color
+	SDL_SetRenderDrawColor( gRenderer, 0xFF, 0xFF, 0xFF, 0xFF );
+
+	//Initialize PNG loading
+	int imgFlags = IMG_INIT_PNG;
+	if( !( IMG_Init( imgFlags ) & imgFlags ) ) {
+		printf( "SDL_image could not initialize! SDL_image Error: %s\n", IMG_GetError() );
+		return false;
+	} 
+
+	//Initialize SDL_ttf
+	if( TTF_Init() == -1 ) {
+		printf( "SDL_ttf could not initialize! SDL_ttf Error: %s\n", TTF_GetError() );
+		return false;
+	} 
+
+	//Get window surface
+	gScreenSurface = SDL_GetWindowSurface( gWindow );
+	if ( SDL_Init( SDL_INIT_AUDIO ) < 0 ) {
+		printf( "SDL could not initialize! SDL Error: %s\n", SDL_GetError() );
+		return false;
+	} 
+
+	//Initialize SDL
+	if( Mix_OpenAudio( 44100, MIX_DEFAULT_FORMAT, 2, 2048 < 0 )){
+		printf( "SDL_mixer could not initialize! SDL_mixer Error: %s\n", Mix_GetError() );
+		return false;
+	} 			
+
+	//Initialize SDL_mixer
+	if (!loadMedia() ){
+		printf( "Failed to load media!\n" );
+		return false;
+	}
+
+	return true;
 }
 
 //Detect any collision between any two  rectangles
@@ -152,203 +163,21 @@ int checkCollision(SDL_Rect a, SDL_Rect b) {
     return true;
 }
 
-// - ** Classes ** -
-
-// *** Texture Class ***
-class LTexture
-{
-	public:
-		//Initializes variables
-		LTexture();
-
-		//Deallocates memory
-		~LTexture();
-
-		//Loads image at specified path
-		bool loadFromFile( std::string path );
-
-		 //Creates image from font string
-        bool loadFromRenderedText( std::string textureText, SDL_Color textColor, const char font[], int size );
-
-		//Deallocates texture
-		void free();
-
-		//Renders texture at given point
-		void render( int x, int y, SDL_Rect* clip = NULL );
-
-		//Gets image dimensions
-		int getWidth();
-		int getHeight();
-
-	private:
-		//The actual hardware texture
-		SDL_Texture* mTexture;
-
-		//Image dimensions
-		int mWidth;
-		int mHeight;
-};
-
-//Scene sprites
-LTexture gSpriteSheetTexture;
-// Background
-LTexture gBackgroundTexture;
-//Text texture
-LTexture gTitleTexture;
-LTexture gOtherTextTexture;
-LTexture gGameInfo;
-
-//Initialize
-LTexture::LTexture()
-{
-	mTexture = NULL;
-	mWidth = 0;
-	mHeight = 0;
-}
-
-//Deallocate
-LTexture::~LTexture()
-{
-	free();
-}
-
-bool LTexture::loadFromFile( std::string path )
-{
-	//Get rid of preexisting texture
-	free();
-
-	//The final texture
-	SDL_Texture* newTexture = NULL;
-
-	//Load image at specified path
-	SDL_Surface* loadedSurface = IMG_Load( path.c_str() );
-	if( loadedSurface == NULL )
-	{
-		printf( "Unable to load image %s! SDL_image Error: %s\n", path.c_str(), IMG_GetError() );
-	}
-	else
-	{
-		//Color key image
-		SDL_SetColorKey( loadedSurface, SDL_TRUE, SDL_MapRGB( loadedSurface->format, 0, 0xFF, 0xFF ) );
-
-		//Create texture from surface pixels
-        newTexture = SDL_CreateTextureFromSurface( gRenderer, loadedSurface );
-		if( newTexture == NULL )
-		{
-			printf( "Unable to create texture from %s! SDL Error: %s\n", path.c_str(), SDL_GetError() );
-		}
-		else
-		{
-			//Get image dimensions
-			mWidth = loadedSurface->w;
-			mHeight = loadedSurface->h;
-		}
-
-		//Get rid of old loaded surface
-		SDL_FreeSurface( loadedSurface );
-	}
-
-	//Return success
-	mTexture = newTexture;
-	return mTexture != NULL;
-}
-
-bool LTexture::loadFromRenderedText( std::string textureText, SDL_Color textColor, const char font[], int size )
-{
-    //Get rid of preexisting texture
-    free();
-	
-	//Open the font
-	gFont = TTF_OpenFont( font, size );
-	if( gFont == NULL )
-	{
-		printf( "Failed to load font! SDL_ttf Error: %s\n", TTF_GetError() );
-	} else {
-		//Render text surface
-		SDL_Surface* textSurface = TTF_RenderText_Solid( gFont, textureText.c_str(), textColor );
-		if( textSurface == NULL )
-		{
-			printf( "Unable to render text surface! SDL_ttf Error: %s\n", TTF_GetError() );
-		}
-		else
-		{
-			//Create texture from surface pixels
-			mTexture = SDL_CreateTextureFromSurface( gRenderer, textSurface );
-			if( mTexture == NULL )
-			{
-				printf( "Unable to create texture from rendered text! SDL Error: %s\n", SDL_GetError() );
-			}			
-			else
-			{
-				//Get image dimensions
-				mWidth = textSurface->w;
-				mHeight = textSurface->h;
-			}
-        }
-
-        //Get rid of old surface
-        SDL_FreeSurface( textSurface );
-    }
-    
-    //Return success
-    return mTexture != NULL;
-}
-
-//Free texture if it exists
-void LTexture::free()
-{
-	if( mTexture != NULL )
-	{
-		SDL_DestroyTexture( mTexture );
-		mTexture = NULL;
-		mWidth = 0;
-		mHeight = 0;
-	}
-}
-
-void LTexture::render( int x, int y, SDL_Rect* clip )
-{
-	//Set rendering space and render to screen
-	SDL_Rect renderQuad = { x, y, mWidth, mHeight };
-
-	//Set clip rendering dimensions
-	if( clip != NULL )
-	{
-		renderQuad.w = clip->w;
-		renderQuad.h = clip->h;
-	}
-
-	//Render to screen	
-	SDL_RenderCopy( gRenderer, mTexture, clip, &renderQuad );
-}
-
-int LTexture::getWidth()
-{
-	return mWidth;
-}
-
-int LTexture::getHeight()
-{
-	return mHeight;
-}
-
 //Load sprite sheet texture and sound FX
 bool loadMedia(){
-
-	//Initialization flag
-	bool success = true;
-
+	
 	//Load sprite sheet texture
-	if( !gSpriteSheetTexture.loadFromFile( "img/space-invaders.png" ) )
+	if( !gSpriteSheetTexture.loadFromFile( "img/space-invaders.png", gRenderer ) )
 	{
 		printf( "Failed to load sprite sheet texture!\n" );
-		success = false;
+		return false;
 	}
+
 	// Load background
-	if( !gBackgroundTexture.loadFromFile( "img/background.png" ) )
+	if( !gBackgroundTexture.loadFromFile( "img/background.png", gRenderer ) )
 	{
 		printf( "Failed to load backgrund!\n" );
-		success = false;
+		return false;
 	}
    
 	//Load sound effects
@@ -356,109 +185,106 @@ bool loadMedia(){
     if( gShipBullet == NULL )
     {
         printf( "Failed to load scratch sound effect! SDL_mixer Error: %s\n", Mix_GetError() );
-        success = false;
+        return false;
     }
     
     gShipHit= Mix_LoadWAV( "soundFX/ShipHit.wav" );
     if( gShipHit == NULL )
     {
         printf( "Failed to load high sound effect! SDL_mixer Error: %s\n", Mix_GetError() );
-        success = false;
+        return false;
     }
 
     gInvaderBullet = Mix_LoadWAV( "soundFX/InvaderBullet.wav" );
     if( gInvaderBullet == NULL )
     {
         printf( "Failed to load medium sound effect! SDL_mixer Error: %s\n", Mix_GetError() );
-        success = false;
+        return false;
     }
 
     gInvaderHit = Mix_LoadWAV( "soundFX/InvaderHit.wav" );
     if( gInvaderHit == NULL )
     {
         printf( "Failed to load low sound effect! SDL_mixer Error: %s\n", Mix_GetError() );
-        success = false;
+        return false;
     }
 
-	return success;
+	return true;
 } 
-
-// *** END Textures class ***
 
 // *** Bullet Class ***
 
-const int B_WIDTH  = 25;
-const int B_HEIGHT = 40;
+//const int B_WIDTH  = 25;
+//const int B_HEIGHT = 40;
 const int P_BULLETS = 1;
 const int E_BULLETS = 3;
 
-struct bullet_t {
+//struct bullet_t {
+//
+//	SDL_Rect hitbox;
+//	unsigned int alive;
+//
+//};
 
-	SDL_Rect hitbox;
-	unsigned int alive;
-
-};
-
-struct bullet_t bullets[P_BULLETS];
-struct bullet_t e_bullets[E_BULLETS];
-
-//Initialize the player bullets dimensions
-void init_bullets(struct bullet_t b[], int max) {
-
-	int i;
-
-	for (i = 0; i < max; i++) {
-		b[i].alive = 0;
-		b[i].hitbox.x = 0;
-		b[i].hitbox.y = 0;
-		b[i].hitbox.w = B_WIDTH;
-		b[i].hitbox.h = B_HEIGHT;
-	}
-}
-
-//Draw both the enemy and the players bullets if there alive
-void draw_bullets(struct bullet_t b[], int max, std::string type) {
-
-	SDL_Rect src;
-	// Sets the location of the image on the sprite sheet based on the bullet type
-	if ( type == "player"){
-		src.x = 32;
-		src.y = 140;
-	} else if ( type == "invader") {
-		src.x = 540;
-		src.y = 365;
-	}
-	
-	src.w = B_WIDTH;
-	src.h = B_HEIGHT;
-	
-	int i;
-	// Renders the bullets
-	for (i = 0; i < max; i++) {
-		if (b[i].alive == 1) {
-			gSpriteSheetTexture.render(b[i].hitbox.x, b[i].hitbox.y, &src );
-		} 
-	}
-}
-
-//Move positions of both enemy and player bullets on screen
-int move_bullets(struct bullet_t b[], int max, int speed) {
-
-	int i;
-
-	for(i = 0; i < max; i++) {
-		if (b[i].alive == 1) {
-			b[i].hitbox.y += speed;
-			if (b[i].hitbox.y <= 0) {
-				b[i].alive = 0;	
-			}
-			if (b[i].hitbox.y + b[i].hitbox.h >= SCREEN_HEIGHT) {
-				b[i].alive = 0;	
-			}
-		}
-	}
-	return 0;
-}
+////Initialize the player bullets dimensions
+//void init_bullets(struct bullet_t b[], int max) {
+//
+//	int i;
+//
+//	for (i = 0; i < max; i++) {
+//		b[i].alive = 0;
+//		b[i].hitbox.x = 0;
+//		b[i].hitbox.y = 0;
+//		b[i].hitbox.w = B_WIDTH;
+//		b[i].hitbox.h = B_HEIGHT;
+//	}
+//}
+//
+////Draw both the enemy and the players bullets if there alive
+//void draw_bullets(Bullet b[], int max, std::string type) {
+//
+//	SDL_Rect src;
+//	// Sets the location of the image on the sprite sheet based on the bullet type
+//	if ( type == "player"){
+//		src.x = 32;
+//		src.y = 140;
+//	} else if ( type == "invader") {
+//		src.x = 540;
+//		src.y = 365;
+//	}
+//	
+//	src.w = Bullet::getWidth();
+//	src.h = Bullet::getHeight();
+//	
+//	int i;
+//	// Renders the bullets
+//	for (i = 0; i < max; i++) {
+//		if (b[i].getBulletAlive() == 1) {
+//			SDL_Rect hitbox = b[i].getHitbox();
+//			gSpriteSheetTexture.render(hitbox.x, hitbox.y, gRenderer, &src );
+//		} 
+//	}
+//}
+//
+////Move positions of both enemy and player bullets on screen
+//int move_bullets(Bullet b[], int max, int speed) {
+//
+//	int i;
+//
+//	for(i = 0; i < max; i++) {
+//		if (b[i].getBulletAlive() == 1) {
+//			SDL_Rect hitbox = b[i].getHitbox();
+//			hitbox.y += speed;
+//			if (hitbox.y <= 0) {
+//				b[i].setBulletAlive(0);	
+//			}
+//			if (hitbox.y + hitbox.h >= SCREEN_HEIGHT) {
+//				b[i].setBulletAlive(0);	
+//			}
+//		}
+//	}
+//	return 0;
+//}
 
 // *** END Bullet Class ***
 
@@ -494,7 +320,7 @@ void draw_player(SDL_Rect playerLoc) {
 	src.y = 480;
 	src.w = P_WIDTH;
 	src.h = P_HEIGHT;
-	gSpriteSheetTexture.render( playerLoc.x, playerLoc.y, &src );
+	gSpriteSheetTexture.render( playerLoc.x, playerLoc.y, gRenderer, &src );
 
 }
 
@@ -513,15 +339,17 @@ void move_player(enum direction_t direction) {
 }
 
 //Shoot bullet/s from player
-void player_shoot() {
+void player_shoot(Bullet bullets[]) {
 
 	int i;
 
 	for (i = 0; i < P_BULLETS; i++) {
-		if (bullets[i].alive == 0) {
-			bullets[i].hitbox.x = (player.hitbox.x + (P_WIDTH / 2)) - B_WIDTH / 2;
-			bullets[i].hitbox.y = player.hitbox.y - (bullets[i].hitbox.h);
-			bullets[i].alive = 1;
+		if (bullets[i].getBulletAlive() == 0) {
+			SDL_Rect hitbox = bullets[i].getHitbox();
+			int x = (player.hitbox.x + (P_WIDTH / 2)) - bullets[i].getWidth() / 2;
+			int y = player.hitbox.y - (hitbox.h);
+			bullets[i].setHitbox(x, y);
+			bullets[i].setBulletAlive(1);
 			Mix_PlayChannel( -1, gShipBullet, 0 );
 			break;
 		}
@@ -529,17 +357,17 @@ void player_shoot() {
 }
 
 //Look for collisions based on enemy bullet and player rectangles
-void player_hit_collision() {
+void player_hit_collision(Bullet e_bullets[]) {
 
 	int i;
 	bool collision;
 
 	for(i = 0; i < E_BULLETS; i++) {	
-		if (e_bullets[i].alive == 1) {
-			collision = checkCollision(e_bullets[i].hitbox, player.hitbox);
+		if (e_bullets[i].getBulletAlive() == 1) {
+			collision = checkCollision(e_bullets[i].getHitbox(), player.hitbox);
 			if (collision) {				
 				if (player.lives >= 0) {	
-					e_bullets[i].alive = 0;
+					e_bullets[i].setBulletAlive(0);
 					player.lives--;
 					Mix_PlayChannel( -1, gShipHit, 0 );
 				}
@@ -627,7 +455,7 @@ void draw_invaders() {
 				dest.w = invaders.enemy[i][j].hitbox.w;
 				dest.h = invaders.enemy[i][j].hitbox.h;
 				
-				gSpriteSheetTexture.render( dest.x, dest.y, &src );
+				gSpriteSheetTexture.render( dest.x, dest.y, gRenderer, &src );
 			}
 		}
 	}
@@ -726,7 +554,7 @@ int get_alive_invaders(){
 }
 
 //Look for collisions based on player bullet and invader rectangles
-void enemy_hit_collision() {
+void enemy_hit_collision(Bullet bullets[]) {
 
 	int i,j,k;
 	bool collision;
@@ -735,13 +563,12 @@ void enemy_hit_collision() {
 		for (j = 0; j < 10; j++) {			
 			if (invaders.enemy[i][j].alive == 1) {			
 				for (k = 0; k < P_BULLETS; k++) {			
-					if (bullets[k].alive == 1) {						
-						collision = checkCollision(bullets[k].hitbox, invaders.enemy[i][j].hitbox);				
+					if (bullets[k].getBulletAlive() == 1) {						
+						collision = checkCollision(bullets[k].getHitbox(), invaders.enemy[i][j].hitbox);				
 						if (collision) {				
 							invaders.enemy[i][j].alive = 0;
-							bullets[k].alive = 0;
-							bullets[k].hitbox.x = 0;
-							bullets[k].hitbox.y = 0;
+							bullets[k].setBulletAlive(0);
+							bullets[k].setHitbox(0, 0);
 							invaders.killed++;
 							Mix_PlayChannel( -1, gInvaderHit, 0 );
 							player.score += invaders.points;
@@ -773,7 +600,7 @@ bool enemy_player_collision() {
 }
 
 //Determine when invaders should shoot
-void enemy_shoot() {
+void enemy_shoot(Bullet e_bullets[]) {
 
 	int i, j, k;
 
@@ -792,19 +619,21 @@ void enemy_shoot() {
 
 					//fire bullet if available
 					for (k = 0; k < E_BULLETS; k++) {			
-						if (e_bullets[k].alive == 0) {				
+						if (e_bullets[k].getBulletAlive() == 0) {				
 							int r = rand() % 30;
 
 							if (r == 1) {
-								e_bullets[k].hitbox.x = (start + (E_WIDTH / 2)) - E_WIDTH / 2 ;
-								e_bullets[k].hitbox.y = invaders.enemy[j][i].hitbox.y + E_WIDTH;
-								e_bullets[k].alive = 1;					
+								SDL_Rect hitbox = e_bullets[k].getHitbox();
+								int x = (start + (E_WIDTH / 2)) - E_WIDTH / 2 ;
+								int y = invaders.enemy[j][i].hitbox.y + E_WIDTH;
+								e_bullets[k].setHitbox(x, y);
+								e_bullets[k].setBulletAlive(1);					
 								Mix_PlayChannel( -1, gInvaderBullet, 0 );
 							}
 							break;
 						}
 					}
-				}				
+				}				 
 				break;
 			}
 		}
@@ -865,8 +694,10 @@ int main( int argc, char* args[] )
 		//Initiate objects
 		init_player();
 		init_invaders();
-		init_bullets(bullets, P_BULLETS);
-		init_bullets(e_bullets, E_BULLETS);
+ 		Bullet bullets[P_BULLETS];
+		Bullet e_bullets[E_BULLETS];
+		//init_bullets(bullets, P_BULLETS);
+		//init_bullets(e_bullets, E_BULLETS);
 
 		game_state = start;		
 		SDL_Color textColor = { 255, 255, 255 };
@@ -908,7 +739,7 @@ int main( int argc, char* args[] )
 									if (game_state == start) {
 										game_state = game;
 									} else if (game_state == game){
-										player_shoot();
+										player_shoot(bullets);
 									} else if (game_state == game_over) {										
 										SDL_RenderClear(gRenderer);
 										init_player();
@@ -924,41 +755,41 @@ int main( int argc, char* args[] )
 			if (game_state == start) {
 
 				//Apply the home screen background image
-				gBackgroundTexture.render(0, 0);
+				gBackgroundTexture.render(0, 0, gRenderer);
 
 				//Render text
-				gTitleTexture.loadFromRenderedText( "Space Invaders", textColor, "fonts/SHOWG.TTF", 48 );
-				gOtherTextTexture.loadFromRenderedText("Press SPACE to continue", textColor, "fonts/ANTQUAB.TTF", 32);
-                gTitleTexture.render( ( SCREEN_WIDTH - gTitleTexture.getWidth() ) / 2, ( SCREEN_HEIGHT / 5 - gTitleTexture.getHeight() ));
-				gOtherTextTexture.render( ( SCREEN_WIDTH - gOtherTextTexture.getWidth() ) / 2, ( SCREEN_HEIGHT * 0.8));
+				gTitleTexture.loadFromRenderedText( "Space Invaders", textColor, "fonts/SHOWG.TTF", 48 , gRenderer, gFont);
+				gOtherTextTexture.loadFromRenderedText("Press SPACE to continue", textColor, "fonts/ANTQUAB.TTF", 32, gRenderer, gFont);
+                gTitleTexture.render( ( SCREEN_WIDTH - gTitleTexture.getWidth() ) / 2, ( SCREEN_HEIGHT / 5 - gTitleTexture.getHeight() ), gRenderer);
+				gOtherTextTexture.render( ( SCREEN_WIDTH - gOtherTextTexture.getWidth() ) / 2, ( SCREEN_HEIGHT * 0.8), gRenderer);
 
 			} else if (game_state == game) {
 
-				// Draw objects
+				// Draw objects		
 				draw_player(player.hitbox);		
-				draw_invaders();									
-				draw_bullets(bullets, P_BULLETS, "player");	
-				draw_bullets(e_bullets, E_BULLETS, "invader");
+				draw_invaders();						
+				Bullet::draw_bullets(bullets, P_BULLETS, "player", gSpriteSheetTexture, gRenderer);	
+				Bullet::draw_bullets(e_bullets, E_BULLETS, "invader", gSpriteSheetTexture, gRenderer);	
 
 				// Checks for collision
-				enemy_hit_collision();
-				player_hit_collision();
+				enemy_hit_collision(bullets);
+				player_hit_collision(e_bullets);
 				enemy_player_collision();
 
 				// Move objects
 				move_invaders(invaders.speed);
-				move_bullets(bullets, P_BULLETS, -5);	
-				move_bullets(e_bullets, E_BULLETS, 5);
+				//Bullet::move_bullets(bullets, P_BULLETS, -5, SCREEN_HEIGHT);	
+				//Bullet::move_bullets(e_bullets, E_BULLETS, 5, SCREEN_HEIGHT);
 
 				// Invaderes shoot
-				enemy_shoot();
+				enemy_shoot(e_bullets);
 				
 				// Render text
 				std::stringstream gameInfo;
 				gameInfo.str("");
 				gameInfo << "Lives: " << player.lives - 1 << " Score: " << player.score;
- 				gGameInfo.loadFromRenderedText( gameInfo.str(), textColor, "fonts/SHOWG.TTF", 20);
-                gGameInfo.render(( SCREEN_WIDTH - ( gGameInfo.getWidth()  + 30 )), 30);
+ 				gGameInfo.loadFromRenderedText( gameInfo.str(), textColor, "fonts/SHOWG.TTF", 20, gRenderer, gFont);
+                gGameInfo.render(( SCREEN_WIDTH - ( gGameInfo.getWidth()  + 30 )), 30, gRenderer);
 				// Check for game oer conditions
 				game_over_ai();
 						 
@@ -974,18 +805,18 @@ int main( int argc, char* args[] )
 			else if (game_state == game_over){
 
 				//Apply the home screen background image
-				gBackgroundTexture.render(0, 0);
+				gBackgroundTexture.render(0, 0, gRenderer);
 
 				//Render text
-				gTitleTexture.loadFromRenderedText( "Game Over", textColor, "fonts/SHOWG.TTF", 48 );
-                gTitleTexture.render( ( SCREEN_WIDTH - gTitleTexture.getWidth() ) / 2, ( SCREEN_HEIGHT / 5 - gTitleTexture.getHeight() ));
+				gTitleTexture.loadFromRenderedText( "Game Over", textColor, "fonts/SHOWG.TTF", 48 , gRenderer, gFont);
+                gTitleTexture.render( ( SCREEN_WIDTH - gTitleTexture.getWidth() ) / 2, ( SCREEN_HEIGHT / 5 - gTitleTexture.getHeight() ), gRenderer);
 				std::stringstream gameInfo;
 				gameInfo.str("");
 				gameInfo << "Score: " << player.score;
- 				gGameInfo.loadFromRenderedText( gameInfo.str(), textColor, "fonts/SHOWG.TTF", 20);
-                gGameInfo.render(( SCREEN_WIDTH - gGameInfo.getWidth()) / 2, ( SCREEN_HEIGHT / 5 + 10));
-				gOtherTextTexture.loadFromRenderedText("Press SPACE to play again", textColor, "fonts/ANTQUAB.TTF", 32);
-				gOtherTextTexture.render( ( SCREEN_WIDTH - gOtherTextTexture.getWidth() ) / 2, ( SCREEN_HEIGHT * 0.8));
+ 				gGameInfo.loadFromRenderedText( gameInfo.str(), textColor, "fonts/SHOWG.TTF", 20, gRenderer, gFont);
+                gGameInfo.render(( SCREEN_WIDTH - gGameInfo.getWidth()) / 2, ( SCREEN_HEIGHT / 5 + 10), gRenderer);
+				gOtherTextTexture.loadFromRenderedText("Press SPACE to play again", textColor, "fonts/ANTQUAB.TTF", 32, gRenderer, gFont);
+				gOtherTextTexture.render( ( SCREEN_WIDTH - gOtherTextTexture.getWidth() ) / 2, ( SCREEN_HEIGHT * 0.8), gRenderer);
 			}
 			//Update screen
 			SDL_RenderPresent( gRenderer );
