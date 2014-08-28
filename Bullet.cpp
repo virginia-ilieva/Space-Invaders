@@ -18,11 +18,14 @@ Bullet::~Bullet(void)
 
 void Bullet::setHitbox( int x, int y ){
 		hitbox.x = x;
-		hitbox.y = y;
+		hitbox.y = y;	
 }
 
 //Draw both the enemy and the players bullets if there alive
-void Bullet::draw_bullets(Bullet b[], int max, std::string type, Texture texture, SDL_Renderer* renderer) {
+void Bullet::draw_bullets(Bullet b[], int max, std::string type) {
+
+	extern Texture gSpriteSheetTexture; 
+	extern SDL_Renderer* gRenderer;
 
 	SDL_Rect src;
 	// Sets the location of the image on the sprite sheet based on the bullet type
@@ -42,7 +45,7 @@ void Bullet::draw_bullets(Bullet b[], int max, std::string type, Texture texture
 	for (i = 0; i < max; i++) {
 		if (b[i].getBulletAlive() == 1) {
 			SDL_Rect hitbox = b[i].getHitbox();
-			texture.render(hitbox.x, hitbox.y, renderer, &src );
+			gSpriteSheetTexture.render(hitbox.x, hitbox.y, gRenderer, &src );
 		} 
 	}
 }

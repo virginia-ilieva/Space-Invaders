@@ -18,6 +18,9 @@ and may not be redistributed without written permission.*/
 const int SCREEN_WIDTH = 1000;
 const int SCREEN_HEIGHT = 680;
 
+const int P_BULLETS = 1;
+const int E_BULLETS = 3;
+
 enum direction_t {left, right, stationary};
 enum state_t {start, game, game_over};
 state_t game_state;
@@ -211,82 +214,6 @@ bool loadMedia(){
 
 	return true;
 } 
-
-// *** Bullet Class ***
-
-//const int B_WIDTH  = 25;
-//const int B_HEIGHT = 40;
-const int P_BULLETS = 1;
-const int E_BULLETS = 3;
-
-//struct bullet_t {
-//
-//	SDL_Rect hitbox;
-//	unsigned int alive;
-//
-//};
-
-////Initialize the player bullets dimensions
-//void init_bullets(struct bullet_t b[], int max) {
-//
-//	int i;
-//
-//	for (i = 0; i < max; i++) {
-//		b[i].alive = 0;
-//		b[i].hitbox.x = 0;
-//		b[i].hitbox.y = 0;
-//		b[i].hitbox.w = B_WIDTH;
-//		b[i].hitbox.h = B_HEIGHT;
-//	}
-//}
-//
-////Draw both the enemy and the players bullets if there alive
-//void draw_bullets(Bullet b[], int max, std::string type) {
-//
-//	SDL_Rect src;
-//	// Sets the location of the image on the sprite sheet based on the bullet type
-//	if ( type == "player"){
-//		src.x = 32;
-//		src.y = 140;
-//	} else if ( type == "invader") {
-//		src.x = 540;
-//		src.y = 365;
-//	}
-//	
-//	src.w = Bullet::getWidth();
-//	src.h = Bullet::getHeight();
-//	
-//	int i;
-//	// Renders the bullets
-//	for (i = 0; i < max; i++) {
-//		if (b[i].getBulletAlive() == 1) {
-//			SDL_Rect hitbox = b[i].getHitbox();
-//			gSpriteSheetTexture.render(hitbox.x, hitbox.y, gRenderer, &src );
-//		} 
-//	}
-//}
-//
-////Move positions of both enemy and player bullets on screen
-//int move_bullets(Bullet b[], int max, int speed) {
-//
-//	int i;
-//
-//	for(i = 0; i < max; i++) {
-//		if (b[i].getBulletAlive() == 1) {
-//			SDL_Rect hitbox = b[i].getHitbox();
-//			hitbox.y += speed;
-//			if (hitbox.y <= 0) {
-//				b[i].setBulletAlive(0);	
-//			}
-//			if (hitbox.y + hitbox.h >= SCREEN_HEIGHT) {
-//				b[i].setBulletAlive(0);	
-//			}
-//		}
-//	}
-//	return 0;
-//}
-
-// *** END Bullet Class ***
 
 // *** Player Class ***
 
@@ -696,8 +623,6 @@ int main( int argc, char* args[] )
 		init_invaders();
  		Bullet bullets[P_BULLETS];
 		Bullet e_bullets[E_BULLETS];
-		//init_bullets(bullets, P_BULLETS);
-		//init_bullets(e_bullets, E_BULLETS);
 
 		game_state = start;		
 		SDL_Color textColor = { 255, 255, 255 };
@@ -768,8 +693,8 @@ int main( int argc, char* args[] )
 				// Draw objects		
 				draw_player(player.hitbox);		
 				draw_invaders();						
-				Bullet::draw_bullets(bullets, P_BULLETS, "player", gSpriteSheetTexture, gRenderer);	
-				Bullet::draw_bullets(e_bullets, E_BULLETS, "invader", gSpriteSheetTexture, gRenderer);	
+				Bullet::draw_bullets(bullets, P_BULLETS, "player");	
+				Bullet::draw_bullets(e_bullets, E_BULLETS, "invader");	
 
 				// Checks for collision
 				enemy_hit_collision(bullets);
@@ -778,8 +703,8 @@ int main( int argc, char* args[] )
 
 				// Move objects
 				move_invaders(invaders.speed);
-				//Bullet::move_bullets(bullets, P_BULLETS, -5, SCREEN_HEIGHT);	
-				//Bullet::move_bullets(e_bullets, E_BULLETS, 5, SCREEN_HEIGHT);
+				Bullet::move_bullets(bullets, P_BULLETS, -5, SCREEN_HEIGHT);	
+				Bullet::move_bullets(e_bullets, E_BULLETS, 5, SCREEN_HEIGHT);
 
 				// Invaderes shoot
 				enemy_shoot(e_bullets);
