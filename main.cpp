@@ -2,10 +2,22 @@
 and may not be redistributed without written permission.*/
 
 //Using SDL and standard IO
+#ifdef _WIN32
+
 #include <SDL.h>
 #include <SDL_image.h>
-#include <SDL_mixer.h>
 #include <SDL_ttf.h>
+#include <SDL_mixer.h>
+
+#elif __APPLE__
+
+#include <SDL2/SDL.h>
+#include <SDL2_image/SDL_image.h>
+#include <SDL2_mixer/SDL_mixer.h>
+#include <SDL2_ttf/SDL_ttf.h>
+
+#endif
+
 #include <stdio.h>
 #include <string>
 #include <sstream>
@@ -77,6 +89,7 @@ bool init()
 	if( gWindow == NULL ) {
 		printf( "Window could not be created! SDL_Error: %s\n", SDL_GetError() );
 		return false;
+
 	}
 
 	//Create renderer for window
@@ -215,6 +228,23 @@ bool loadMedia(){
 	return true;
 } 
 
+<<<<<<< HEAD
+=======
+
+//bullets util function
+int find_all_bullets_of_type(std::vector<Bullet*> & bullets, Bullet::Type type) {
+    int result = 0;
+    for (std::vector<Bullet*>::iterator i = bullets.begin(); i != bullets.end(); ++i )
+    {
+        Bullet * bullet = *i;
+        if (bullet->getType() == type) {
+            result++;
+        }
+    }
+    return result;
+}
+
+>>>>>>> ab69343a6b5969ecc896493e3f19ec274204d439
 // *** Player Class ***
 
 const int P_WIDTH = 70;
@@ -266,41 +296,41 @@ void move_player(enum direction_t direction) {
 }
 
 //Shoot bullet/s from player
-void player_shoot(Bullet bullets[]) {
+void player_shoot(std::vector<Bullet*> & bullets) {
 
-	int i;
+    static const int MAX_BULLETS = 1;
+    
+    int num = find_all_bullets_of_type(bullets, Bullet::Player);
 
-	for (i = 0; i < P_BULLETS; i++) {
-		if (bullets[i].getBulletAlive() == 0) {
-			SDL_Rect hitbox = bullets[i].getHitbox();
-			int x = (player.hitbox.x + (P_WIDTH / 2)) - bullets[i].getWidth() / 2;
-			int y = player.hitbox.y - (hitbox.h);
-			bullets[i].setHitbox(x, y);
-			bullets[i].setBulletAlive(1);
-			Mix_PlayChannel( -1, gShipBullet, 0 );
-			break;
-		}
-	}
+    if (num < MAX_BULLETS) {
+        Bullet * bullet = Bullet::newPlayerBullet(&gSpriteSheetTexture);
+        int x = (player.hitbox.x + (P_WIDTH / 2)) - Bullet::WIDTH / 2;
+        int y = player.hitbox.y - (Bullet::HEIGHT);
+        bullet->setPos(LGVector2D(x, y));
+        bullets.push_back(bullet);
+        Mix_PlayChannel( -1, gShipBullet, 0 );
+    }
 }
 
 //Look for collisions based on enemy bullet and player rectangles
-void player_hit_collision(Bullet e_bullets[]) {
-
-	int i;
-	bool collision;
-
-	for(i = 0; i < E_BULLETS; i++) {	
-		if (e_bullets[i].getBulletAlive() == 1) {
-			collision = checkCollision(e_bullets[i].getHitbox(), player.hitbox);
-			if (collision) {				
-				if (player.lives >= 0) {	
-					e_bullets[i].setBulletAlive(0);
-					player.lives--;
-					Mix_PlayChannel( -1, gShipHit, 0 );
-				}
-			}
-		}
-	}
+void player_hit_collision(std::vector<Bullet*> & bullets) {
+    
+    for (std::vector<Bullet*>::iterator i = bullets.begin(); i != bullets.end(); )
+    {
+        Bullet * bullet = *i;
+        if (bullet->getType() == Bullet::Enemy &&
+            checkCollision(bullet->getHitbox(), player.hitbox) && player.lives >= 0)
+        {
+              printf("3");
+            delete bullet;
+            bullets.erase(i);
+            player.lives--;
+            Mix_PlayChannel( -1, gShipHit, 0 );
+            break;
+        } else {
+            ++i;
+        }
+    }
 }
 
 // *** END Player Class ***
@@ -313,7 +343,7 @@ const int E_HEIGHT = 65;
 struct enemy_t {
 
 	SDL_Rect hitbox;
-	unsigned int alive;
+	bool alive;
 
 };
 
@@ -347,7 +377,7 @@ void init_invaders() {
 
 		for (j = 0; j < 10; j++) {
 
-			invaders.enemy[i][j].alive = 1;
+			invaders.enemy[i][j].alive = true;
 			invaders.enemy[i][j].hitbox.x = x;
 			invaders.enemy[i][j].hitbox.y = y;
 			invaders.enemy[i][j].hitbox.w = E_WIDTH;
@@ -376,7 +406,7 @@ void draw_invaders() {
 
 	for (i = 0; i < 5; i++) {
 		for (j = 0; j < 10; j++) {
-			if (invaders.enemy[i][j].alive == 1) {				
+			if (invaders.enemy[i][j].alive == true) {
 				dest.x = invaders.enemy[i][j].hitbox.x;
 				dest.y = invaders.enemy[i][j].hitbox.y;
 				dest.w = invaders.enemy[i][j].hitbox.w;
@@ -430,7 +460,7 @@ int move_invaders(int speed) {
 		case left:
 			for (i = 0; i < 10; i++) {
 				for (j = 0; j < 5; j++) {
-					if (invaders.enemy[j][i].alive == 1) {
+					if (invaders.enemy[j][i].alive) {
 						if (invaders.enemy[j][i].hitbox.x <= 0) {
 							invaders.direction = right;
 							move_invaders_down();
@@ -446,7 +476,7 @@ int move_invaders(int speed) {
 		case right:
 			for (i = 9; i >= 0; i--) {
 				for (j = 0; j < 5; j++) {
-					if (invaders.enemy[j][i].alive == 1) {
+					if (invaders.enemy[j][i].alive) {
 						if (invaders.enemy[j][i].hitbox.x + E_WIDTH >= SCREEN_WIDTH) {
 							invaders.direction = left;
 							move_invaders_down();
@@ -472,7 +502,7 @@ int get_alive_invaders(){
 	
 	for (i = 0; i < 5; i++) {		
 		for (j = 0; j < 10; j++) {			
-			if (invaders.enemy[i][j].alive == 1) {
+			if (invaders.enemy[i][j].alive) {
 				alive ++;						
 			}
 		}
@@ -481,28 +511,31 @@ int get_alive_invaders(){
 }
 
 //Look for collisions based on player bullet and invader rectangles
-void enemy_hit_collision(Bullet bullets[]) {
-
-	int i,j,k;
-	bool collision;
+void enemy_hit_collision(std::vector<Bullet*> & bullets) {
 	
-	for (i = 0; i < 5; i++) {		
-		for (j = 0; j < 10; j++) {			
-			if (invaders.enemy[i][j].alive == 1) {			
-				for (k = 0; k < P_BULLETS; k++) {			
-					if (bullets[k].getBulletAlive() == 1) {						
-						collision = checkCollision(bullets[k].getHitbox(), invaders.enemy[i][j].hitbox);				
-						if (collision) {				
-							invaders.enemy[i][j].alive = 0;
-							bullets[k].setBulletAlive(0);
-							bullets[k].setHitbox(0, 0);
-							invaders.killed++;
-							Mix_PlayChannel( -1, gInvaderHit, 0 );
-							player.score += invaders.points;
-						}
-					}
-				}
-			}
+	for (int i = 0; i < 5; i++) {
+		for (int j = 0; j < 10; j++) {
+			if (!invaders.enemy[i][j].alive) {
+                continue;
+            }
+
+            for (std::vector<Bullet*>::iterator it = bullets.begin(); it != bullets.end();) {
+                Bullet * bullet = *it;
+                if (bullet->getType() == Bullet::Player &&
+                    checkCollision(bullet->getHitbox(), invaders.enemy[i][j].hitbox))
+                {
+                    invaders.enemy[i][j].alive = false;
+                    invaders.killed++;
+                    Mix_PlayChannel( -1, gInvaderHit, 0 );
+                    player.score += invaders.points;
+                    
+                    printf("1");
+                    delete bullet;
+                    bullets.erase(it);
+                } else {
+                    ++it;
+                }
+            }
 		}
 	}
 }
@@ -527,9 +560,11 @@ bool enemy_player_collision() {
 }
 
 //Determine when invaders should shoot
-void enemy_shoot(Bullet e_bullets[]) {
+void enemy_shoot(std::vector<Bullet*> & bullets) {
+    
+    static const int MAX_BULLETS = 3;
 
-	int i, j, k;
+    int i, j;
 
 	for (i = 0; i < 10; i++) {		
 		for (j = 4; j >= 0; j--) {			
@@ -540,26 +575,22 @@ void enemy_shoot(Bullet e_bullets[]) {
 				//enemy
 				int start = invaders.enemy[j][i].hitbox.x;
 				int end = invaders.enemy[j][i].hitbox.x + invaders.enemy[j][i].hitbox.w;
-
+                
+                //num of enemy bullets
+                int num = find_all_bullets_of_type(bullets, Bullet::Enemy);
 				// checks if the player is in the enemy hit zone
 				if (mid_point > start && mid_point < end) {
+                    if (num < MAX_BULLETS &&  (rand() % 30) == 1) {
 
-					//fire bullet if available
-					for (k = 0; k < E_BULLETS; k++) {			
-						if (e_bullets[k].getBulletAlive() == 0) {				
-							int r = rand() % 30;
-
-							if (r == 1) {
-								SDL_Rect hitbox = e_bullets[k].getHitbox();
-								int x = (start + (E_WIDTH / 2)) - E_WIDTH / 2 ;
-								int y = invaders.enemy[j][i].hitbox.y + E_WIDTH;
-								e_bullets[k].setHitbox(x, y);
-								e_bullets[k].setBulletAlive(1);					
-								Mix_PlayChannel( -1, gInvaderBullet, 0 );
-							}
-							break;
-						}
-					}
+                        int x = (start + (E_WIDTH / 2)) - E_WIDTH / 2 ;
+                        int y = invaders.enemy[j][i].hitbox.y + E_WIDTH;
+                        
+                        Bullet * bullet = Bullet::newInvaderBullet(&gSpriteSheetTexture);
+                        bullet->setPos(LGVector2D(x, y));
+                        bullets.push_back(bullet);
+                        
+                        Mix_PlayChannel( -1, gInvaderBullet, 0 );
+                    }
 				}				 
 				break;
 			}
@@ -621,8 +652,8 @@ int main( int argc, char* args[] )
 		//Initiate objects
 		init_player();
 		init_invaders();
- 		Bullet bullets[P_BULLETS];
-		Bullet e_bullets[E_BULLETS];
+
+        std::vector<Bullet*> bullets = std::vector<Bullet*>();
 
 		game_state = start;		
 		SDL_Color textColor = { 255, 255, 255 };
@@ -640,13 +671,13 @@ int main( int argc, char* args[] )
 			SDL_RenderClear(gRenderer);
 			Uint32 next_game_tick = SDL_GetTicks();
 			int sleep = 0;
-
+    
 			//Handle events on queue
 			while ( SDL_PollEvent( &e ) != 0 ) {
 				//User requests quit
 				if ( e.type == SDL_QUIT ) {
 					quit = true;
-				} else {				
+				} else {
 					switch (e.type) {
 						// Key press event
 						case SDL_KEYDOWN:
@@ -691,23 +722,54 @@ int main( int argc, char* args[] )
 			} else if (game_state == game) {
 
 				// Draw objects		
-				draw_player(player.hitbox);		
-				draw_invaders();						
-				Bullet::draw_bullets(bullets, P_BULLETS, "player");	
-				Bullet::draw_bullets(e_bullets, E_BULLETS, "invader");	
+				draw_player(player.hitbox);
+                draw_invaders();
+                
+                //drawing bullets, maybe try to combine them? can use simple enum to distinguish between type of bullets
+                for (std::vector<Bullet*>::iterator i = bullets.begin(); i != bullets.end(); ++i) {
+                    Bullet * bullet = *i;
+                    bullet->draw(gRenderer);
+                }
 
 				// Checks for collision
 				enemy_hit_collision(bullets);
-				player_hit_collision(e_bullets);
+				player_hit_collision(bullets);
 				enemy_player_collision();
 
 				// Move objects
 				move_invaders(invaders.speed);
-				Bullet::move_bullets(bullets, P_BULLETS, -5, SCREEN_HEIGHT);	
-				Bullet::move_bullets(e_bullets, E_BULLETS, 5, SCREEN_HEIGHT);
+
+                //move bullets
+                for (std::vector<Bullet*>::iterator it = bullets.begin(); it != bullets.end(); ) {
+                    Bullet * bullet = *it;
+                    
+                    switch (bullet->getType()) {
+                        case Bullet::Player:
+                            bullet->move(LGVector2D(0, -5));
+                            break;
+                        case Bullet::Enemy:
+                            bullet->move(LGVector2D(0, 5));
+                            break;
+                        default:
+                            break;
+                    }
+                    
+                    
+                    SDL_Rect hitbox = bullet->getHitbox();
+                    if (hitbox.y <= 0 ||
+                        hitbox.y + hitbox.h >= SCREEN_HEIGHT)
+                    {
+                        delete bullet;
+                        bullets.erase(it);
+
+                    } else {
+                        ++it;
+                    }
+                    
+                }
 
 				// Invaderes shoot
-				enemy_shoot(e_bullets);
+				enemy_shoot(bullets);
 				
 				// Render text
 				std::stringstream gameInfo;

@@ -1,32 +1,44 @@
-#pragma once
+#ifdef _WIN32
+
 #include <SDL.h>
+
+#elif __APPLE__
+
+#include <SDL2/SDL.h>
+
+#endif
+
 #include <string>
 
-#include "Texture.h"
+#include "GameObject.h"
 
-class Bullet
+#ifndef _BULLET_H_
+#define _BULLET_H_
+
+
+
+class Bullet : public GameObject
 {
-	private:
-		static const int B_WIDTH  = 25;
-		static const int B_HEIGHT = 40;
-		
-		unsigned int alive;
-		SDL_Rect hitbox;
+public:
+    enum Type { Player = 0, Enemy = 1};
 
-	public:
-		Bullet();
-		~Bullet(void);
+    static const int WIDTH  = 25;
+    static const int HEIGHT = 40;
 
-		static void Bullet::draw_bullets(Bullet b[], int max, std::string type);
-		static int Bullet::move_bullets(Bullet b[], int max, int speed, int SCREEN_HEIGHT);
 
-		static int Bullet::getWidth() { return B_WIDTH; }
-		static int Bullet::getHeight() { return B_HEIGHT; }
+    Bullet::Type getType() { return this->type; }
 
-		const int Bullet::getBulletAlive() { return alive; }
-		void Bullet::setBulletAlive( int state ) { alive = state; } 
 
-		const SDL_Rect Bullet::getHitbox() { return hitbox; }
-		void Bullet::setHitbox( int x, int y );
+    Bullet();
+    Bullet(Texture * texture, LGVector2D pos, SDL_Rect rect, Bullet::Type type);
+    ~Bullet(void);
+    
+    virtual SDL_Rect getHitbox();
+
+    static Bullet * newInvaderBullet(Texture * texture);
+    static Bullet * newPlayerBullet(Texture * texture);
+private:
+    Bullet::Type type;
 };
 
+#endif /* _BULLET_H_ */
