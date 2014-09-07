@@ -1,5 +1,6 @@
 #include "Bullet.h"
 #include <string>
+#include <vector>
 
 #include "LGVector2D.h"
 #include "Texture.h"
@@ -15,13 +16,29 @@ Bullet::~Bullet(void)
 }
 
 Bullet * Bullet::newInvaderBullet(Texture *texture) {
-    return new Bullet(texture, LGVector2D(), SDL_Rect { 540, 365 , Bullet::WIDTH, Bullet::HEIGHT }, Bullet::Enemy);
+	SDL_Rect rect = { 540, 365 , Bullet::WIDTH, Bullet::HEIGHT };
+	return new Bullet(texture, LGVector2D(), rect , Bullet::Enemy);
 }
 
 Bullet * Bullet::newPlayerBullet(Texture *texture) {
-    return new Bullet(texture, LGVector2D(), SDL_Rect { 32, 140 , Bullet::WIDTH, Bullet::HEIGHT }, Bullet::Player);
+	SDL_Rect rect = { 32, 140 , Bullet::WIDTH, Bullet::HEIGHT };
+    return new Bullet(texture, LGVector2D(), rect, Bullet::Player);
 }
 
 SDL_Rect Bullet::getHitbox() {
-    return SDL_Rect { (int) this->pos.x, (int) this->pos.y, Bullet::WIDTH, Bullet::HEIGHT  };
+	SDL_Rect rect = { (int) this->pos.x, (int) this->pos.y, Bullet::WIDTH, Bullet::HEIGHT };
+	return rect;
+} 
+
+//bullets util function
+int Bullet::find_all_bullets_of_type(std::vector<Bullet*> & bullets, Bullet::Type type) {
+    int result = 0;
+    for (std::vector<Bullet*>::iterator i = bullets.begin(); i != bullets.end(); ++i )
+    {
+        Bullet * bullet = *i;
+        if (bullet->getType() == type) {
+            result++;
+        }
+    }
+    return result;
 }

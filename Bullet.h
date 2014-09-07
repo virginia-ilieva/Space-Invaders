@@ -9,6 +9,7 @@
 #endif
 
 #include <string>
+#include <vector>
 
 #include "GameObject.h"
 
@@ -34,6 +35,8 @@ public:
     ~Bullet(void);
     
     virtual SDL_Rect getHitbox();
+
+	static int Bullet::find_all_bullets_of_type(std::vector<Bullet*> & bullets, Bullet::Type type);
 
     static Bullet * newInvaderBullet(Texture * texture);
     static Bullet * newPlayerBullet(Texture * texture);

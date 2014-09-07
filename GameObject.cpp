@@ -33,5 +33,6 @@ void GameObject::draw(SDL_Renderer * renderer) {
 }
 
 SDL_Rect GameObject::getHitbox() {
-    return SDL_Rect { (int) this->pos.x, (int) this->pos.y, this->texture->getWidth(), this->texture->getHeight() };
+	SDL_Rect rect = { (int) this->pos.x, (int) this->pos.y, this->texture->getWidth(), this->texture->getHeight() };
+    return rect;
 }

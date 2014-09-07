@@ -25,15 +25,15 @@ and may not be redistributed without written permission.*/
 
 #include "Texture.h"
 #include "Bullet.h"
+#include "Player.h"
+#include "Enemy.h"
 
 //Screen dimension constants
 const int SCREEN_WIDTH = 1000;
 const int SCREEN_HEIGHT = 680;
 
-const int P_BULLETS = 1;
-const int E_BULLETS = 3;
-
 enum direction_t {left, right, stationary};
+direction_t enemy_direction;
 enum state_t {start, game, game_over};
 state_t game_state;
 
@@ -63,13 +63,23 @@ Texture gGameInfo;
 
 //Starts up SDL and creates window
 bool init();
-
 //Loads media
 bool loadMedia();
-
 //Frees media and shuts down SDL
 void close();
+//Detect any collision between any two  rectangles
+int checkCollision(SDL_Rect a, SDL_Rect b);
+//Renders the game start window
+void game_state_start(SDL_Color textColor);
+// Hadles the main game loop 
+void game_state_game(std::vector<Bullet*> & bullets, std::vector<std::vector<Enemy*>> & invaders, Player * player, SDL_Color textColor);
+// Renders the game ove screen
+void game_state_game_over(Player * player, SDL_Color textColor);
+//Determine for game over event
+void game_over_ai(std::vector<std::vector<Enemy*>> & invaders, Player * player);
 
+
+//Starts up SDL and creates window
 bool init()
 {
 	//Initialize SDL
@@ -178,8 +188,7 @@ int checkCollision(SDL_Rect a, SDL_Rect b) {
     //If none of the sides from A are outside B
     return true;
 }
-
-//Load sprite sheet texture and sound FX
+//Loads media
 bool loadMedia(){
 	
 	//Load sprite sheet texture
@@ -226,264 +235,76 @@ bool loadMedia(){
     }
 
 	return true;
-} 
-
-<<<<<<< HEAD
-=======
-
-//bullets util function
-int find_all_bullets_of_type(std::vector<Bullet*> & bullets, Bullet::Type type) {
-    int result = 0;
-    for (std::vector<Bullet*>::iterator i = bullets.begin(); i != bullets.end(); ++i )
-    {
-        Bullet * bullet = *i;
-        if (bullet->getType() == type) {
-            result++;
-        }
-    }
-    return result;
 }
 
->>>>>>> ab69343a6b5969ecc896493e3f19ec274204d439
-// *** Player Class ***
+//Renders the game start window
+void game_state_start(SDL_Color textColor){
+	//Apply the home screen background image
+	gBackgroundTexture.render(0, 0, gRenderer);
 
-const int P_WIDTH = 70;
-const int P_HEIGHT = 35;
-
-struct player_t {
-	SDL_Rect hitbox;
-	int lives;
-	int score;
-};
-
-struct player_t player;
-
-//Initialize the player starting position and dimensions
-void init_player() {
-
-	player.hitbox.x = (SCREEN_WIDTH / 2) - (P_WIDTH / 2);
-	player.hitbox.y = SCREEN_HEIGHT - (P_HEIGHT + 10);
-	player.hitbox.w = P_WIDTH;
-	player.hitbox.h = P_HEIGHT;
-	player.lives = 3;
+	//Render text
+	gTitleTexture.loadFromRenderedText( "Space Invaders", textColor, "fonts/SHOWG.TTF", 48 , gRenderer, gFont);
+	gOtherTextTexture.loadFromRenderedText("Press SPACE to continue", textColor, "fonts/ANTQUAB.TTF", 32, gRenderer, gFont);
+    gTitleTexture.render( ( SCREEN_WIDTH - gTitleTexture.getWidth() ) / 2, ( SCREEN_HEIGHT / 5 - gTitleTexture.getHeight() ), gRenderer);
+	gOtherTextTexture.render( ( SCREEN_WIDTH - gOtherTextTexture.getWidth() ) / 2, ( SCREEN_HEIGHT * 0.8), gRenderer);
 }
 
-//Draw the player
-void draw_player(SDL_Rect playerLoc) {
+// Hadles the main game loop 
+void game_state_game(std::vector<Bullet*> & bullets, std::vector<std::vector<Enemy*>> & invaders, Player * player, SDL_Color textColor){
 
-	SDL_Rect src;
+	std::vector<std::vector<Enemy*>>::iterator row;
+	std::vector<Enemy*>::iterator col;
 
-	src.x = 10;
-	src.y = 480;
-	src.w = P_WIDTH;
-	src.h = P_HEIGHT;
-	gSpriteSheetTexture.render( playerLoc.x, playerLoc.y, gRenderer, &src );
+	// Draw objects		
+	player->draw(gRenderer);
 
-}
-
-//Move player left or right
-void move_player(enum direction_t direction) {
-
-	if (direction == left) {
-		if (player.hitbox.x > 0) {
-			player.hitbox.x -= 5;
-		}
-	} else if (direction == right) {
-		if (player.hitbox.x + player.hitbox.w < SCREEN_WIDTH){
-			player.hitbox.x += 5;
-		}
-	}
-}
-
-//Shoot bullet/s from player
-void player_shoot(std::vector<Bullet*> & bullets) {
-
-    static const int MAX_BULLETS = 1;
-    
-    int num = find_all_bullets_of_type(bullets, Bullet::Player);
-
-    if (num < MAX_BULLETS) {
-        Bullet * bullet = Bullet::newPlayerBullet(&gSpriteSheetTexture);
-        int x = (player.hitbox.x + (P_WIDTH / 2)) - Bullet::WIDTH / 2;
-        int y = player.hitbox.y - (Bullet::HEIGHT);
-        bullet->setPos(LGVector2D(x, y));
-        bullets.push_back(bullet);
-        Mix_PlayChannel( -1, gShipBullet, 0 );
-    }
-}
-
-//Look for collisions based on enemy bullet and player rectangles
-void player_hit_collision(std::vector<Bullet*> & bullets) {
-    
-    for (std::vector<Bullet*>::iterator i = bullets.begin(); i != bullets.end(); )
-    {
-        Bullet * bullet = *i;
-        if (bullet->getType() == Bullet::Enemy &&
-            checkCollision(bullet->getHitbox(), player.hitbox) && player.lives >= 0)
-        {
-              printf("3");
-            delete bullet;
-            bullets.erase(i);
-            player.lives--;
-            Mix_PlayChannel( -1, gShipHit, 0 );
-            break;
-        } else {
-            ++i;
-        }
-    }
-}
-
-// *** END Player Class ***
-
-// *** Enemy Class ***
-
-const int E_WIDTH = 60;
-const int E_HEIGHT = 65;
-
-struct enemy_t {
-
-	SDL_Rect hitbox;
-	bool alive;
-
-};
-
-// *** END Enemy Class ***
-
-// *** Invaders Class ***
-
-struct invaders_t {
-
-	struct enemy_t enemy[5][10];
-	enum direction_t direction;
-	unsigned int killed;
-	int speed;
-	unsigned int points;
-};
-
-struct invaders_t invaders;
-
-//Initialize the enemies starting positions, direction, speed and colour
-void init_invaders() {
-
-	invaders.direction = right;
-	invaders.speed = 1;
-	invaders.killed = 0;
-
-	int i,j;
-	int x = 0;
-	int y = 60;
-
-	for (i = 0; i < 5; i++) {
-
-		for (j = 0; j < 10; j++) {
-
-			invaders.enemy[i][j].alive = true;
-			invaders.enemy[i][j].hitbox.x = x;
-			invaders.enemy[i][j].hitbox.y = y;
-			invaders.enemy[i][j].hitbox.w = E_WIDTH;
-			invaders.enemy[i][j].hitbox.h = E_HEIGHT;
-
-			x += E_WIDTH; //location for the next invader
-
-			invaders.points = 10;
-		}
-
-		x = 0; //reset line
-		y += E_HEIGHT;
-	}
-}
-
-//Draw the invaders if there alive
-void draw_invaders() {
-
-	SDL_Rect src, dest;
-	int i,j;
-	
-	src.x = 241;
-	src.y = 345;
-	src.w = E_WIDTH;
-	src.h = E_HEIGHT;
-
-	for (i = 0; i < 5; i++) {
-		for (j = 0; j < 10; j++) {
-			if (invaders.enemy[i][j].alive == true) {
-				dest.x = invaders.enemy[i][j].hitbox.x;
-				dest.y = invaders.enemy[i][j].hitbox.y;
-				dest.w = invaders.enemy[i][j].hitbox.w;
-				dest.h = invaders.enemy[i][j].hitbox.h;
-				
-				gSpriteSheetTexture.render( dest.x, dest.y, gRenderer, &src );
+    //Drawing invaders
+	for (row = invaders.begin(); row != invaders.end(); ++row) {
+			for (col = row->begin(); col != row->end(); ++col) {
+			Enemy * enemy = *col;
+			enemy->draw(gRenderer);
 			}
-		}
 	}
-}
 
-//Set invader movment speed
-void set_invaders_speed() {
-	
-	// Changes the speed of the invaders every minute
-	if ( SDL_GetTicks() > 1000 * 60 && SDL_GetTicks() < 2000 * 60 ){
-		invaders.speed = 2;
-	} else if ( SDL_GetTicks() > 2000 * 60 && SDL_GetTicks() < 3000 * 60 ){
-		invaders.speed = 4;
-	} else if ( SDL_GetTicks() > 3000 * 60 && SDL_GetTicks() < 4000 * 60 ){
-		invaders.speed = 8;
-	} else if ( SDL_GetTicks() > 4000 * 60 ) {
-		invaders.speed = 16;
-	}
-	// Invaders points are based on the invaderes speed
-	if (invaders.speed > 1 ){
-		invaders.points = 10 * invaders.speed;
-	}
-}
+    //drawing bullets, maybe try to combine them? can use simple enum to distinguish between type of bullets
+    for (std::vector<Bullet*>::iterator i = bullets.begin(); i != bullets.end(); ++i) {
+        Bullet * bullet = *i;
+        bullet->draw(gRenderer);
+    }
 
-//Move invaders down one space once the reach the edge
-void move_invaders_down() {
+	// Checks for collision
+	Enemy::hit_collision(bullets, invaders, player);
+	player->hit_collision(bullets);
+	//enemy_player_collision();
 
-	int i,j;
-
-	for (i = 0; i < 5; i++) {
-		for (j = 0; j < 10; j++) {
-			invaders.enemy[i][j].hitbox.y += 15;
-		}
-	}
-}
-
-//Move invaders based on there current direction
-int move_invaders(int speed) {
-
-	set_invaders_speed();
-
-	int i,j;
-
-	switch (invaders.direction) {
+	// Move invaders
+	//move_invaders(invaders.speed);
+	Enemy::set_speed(invaders);
+	switch (enemy_direction) {
 		case left:
-			for (i = 0; i < 10; i++) {
-				for (j = 0; j < 5; j++) {
-					if (invaders.enemy[j][i].alive) {
-						if (invaders.enemy[j][i].hitbox.x <= 0) {
-							invaders.direction = right;
-							move_invaders_down();
-							return 0;
-						}
-						//move invader speed number of pixels
-						invaders.enemy[j][i].hitbox.x -= invaders.speed;
+			for (row = invaders.begin(); row != invaders.end(); ++row) {
+					for (col = row->begin(); col != row->end(); ++col) {
+					Enemy * enemy = *col;
+					if (enemy->getHitbox().x <= 0) {
+						enemy_direction = right;
+						Enemy::move_down(invaders);
+						break;
 					}
+					enemy->move(LGVector2D(-enemy->getSpeed(), 0));
 				}
 			}
 			break;
 
 		case right:
-			for (i = 9; i >= 0; i--) {
-				for (j = 0; j < 5; j++) {
-					if (invaders.enemy[j][i].alive) {
-						if (invaders.enemy[j][i].hitbox.x + E_WIDTH >= SCREEN_WIDTH) {
-							invaders.direction = left;
-							move_invaders_down();
-							return 0;
-						}
-						invaders.enemy[j][i].hitbox.x += invaders.speed;
+			for (row = invaders.begin(); row != invaders.end(); ++row) {
+					for (col = row->begin(); col != row->end(); ++col) {
+					Enemy * enemy = *col;
+					if (enemy->getHitbox().x + enemy->WIDTH >= SCREEN_WIDTH) {
+						enemy_direction = left;
+						Enemy::move_down(invaders);
+						break;
 					}
+					enemy->move(LGVector2D(enemy->getSpeed(), 0));
 				}
 			}
 			break;
@@ -491,119 +312,70 @@ int move_invaders(int speed) {
 		default:
 		break;
 	}
-	return 0;
-}
-
-// Gets the number of alive invaders
-int get_alive_invaders(){
-
-	int i,j;
-	int alive = 0;
-	
-	for (i = 0; i < 5; i++) {		
-		for (j = 0; j < 10; j++) {			
-			if (invaders.enemy[i][j].alive) {
-				alive ++;						
-			}
-		}
-	}
-	return alive;
-}
-
-//Look for collisions based on player bullet and invader rectangles
-void enemy_hit_collision(std::vector<Bullet*> & bullets) {
-	
-	for (int i = 0; i < 5; i++) {
-		for (int j = 0; j < 10; j++) {
-			if (!invaders.enemy[i][j].alive) {
-                continue;
-            }
-
-            for (std::vector<Bullet*>::iterator it = bullets.begin(); it != bullets.end();) {
-                Bullet * bullet = *it;
-                if (bullet->getType() == Bullet::Player &&
-                    checkCollision(bullet->getHitbox(), invaders.enemy[i][j].hitbox))
-                {
-                    invaders.enemy[i][j].alive = false;
-                    invaders.killed++;
-                    Mix_PlayChannel( -1, gInvaderHit, 0 );
-                    player.score += invaders.points;
-                    
-                    printf("1");
-                    delete bullet;
-                    bullets.erase(it);
-                } else {
-                    ++it;
-                }
-            }
-		}
-	}
-}
-
-//Look for collisions based on invader and player rectangles
-bool enemy_player_collision() {
-
-	int i,j;
-	bool collision;
-
-	for(i = 0; i < 5; i++) {
-		for(j = 0; j < 10; j++) {		
-			if (invaders.enemy[i][j].alive == 1) {					
-				collision = checkCollision(player.hitbox, invaders.enemy[i][j].hitbox);
-				if (collision) {
-					return true;
-				}
-			}
-		}
-	}
-	return false;
-}
-
-//Determine when invaders should shoot
-void enemy_shoot(std::vector<Bullet*> & bullets) {
-    
-    static const int MAX_BULLETS = 3;
-
-    int i, j;
-
-	for (i = 0; i < 10; i++) {		
-		for (j = 4; j >= 0; j--) {			
-			if (invaders.enemy[j][i].alive == 1) {				
-				//player
-				int mid_point = player.hitbox.x + (player.hitbox.w / 2);
 				
-				//enemy
-				int start = invaders.enemy[j][i].hitbox.x;
-				int end = invaders.enemy[j][i].hitbox.x + invaders.enemy[j][i].hitbox.w;
-                
-                //num of enemy bullets
-                int num = find_all_bullets_of_type(bullets, Bullet::Enemy);
-				// checks if the player is in the enemy hit zone
-				if (mid_point > start && mid_point < end) {
-                    if (num < MAX_BULLETS &&  (rand() % 30) == 1) {
+    //move bullets
+    for (std::vector<Bullet*>::iterator it = bullets.begin(); it != bullets.end(); ) {
+        Bullet * bullet = *it;
+                    
+        switch (bullet->getType()) {
+            case Bullet::Player:
+                bullet->move(LGVector2D(0, -5));
+                break;
+            case Bullet::Enemy:
+                bullet->move(LGVector2D(0, 5));
+                break;
+            default:
+                break;
+        }
+                    
+                    
+        SDL_Rect hitbox = bullet->getHitbox();
+        if (hitbox.y <= 0 ||
+            hitbox.y + hitbox.h >= SCREEN_HEIGHT)
+        {
+            delete bullet;
+            it = bullets.erase(it);
+        } else {
+            ++it;
+        }
+                    
+    }
 
-                        int x = (start + (E_WIDTH / 2)) - E_WIDTH / 2 ;
-                        int y = invaders.enemy[j][i].hitbox.y + E_WIDTH;
-                        
-                        Bullet * bullet = Bullet::newInvaderBullet(&gSpriteSheetTexture);
-                        bullet->setPos(LGVector2D(x, y));
-                        bullets.push_back(bullet);
-                        
-                        Mix_PlayChannel( -1, gInvaderBullet, 0 );
-                    }
-				}				 
-				break;
-			}
-		}
-	}
+	// Invaderes shoot
+	Enemy::shoot(bullets, invaders, player);
+				
+	// Render text
+	std::stringstream gameInfo;
+	gameInfo.str("");
+	gameInfo << "Lives: " << player->getLives() - 1 << " Score: " << player->getScore();
+ 	gGameInfo.loadFromRenderedText( gameInfo.str(), textColor, "fonts/SHOWG.TTF", 20, gRenderer, gFont);
+    gGameInfo.render(( SCREEN_WIDTH - ( gGameInfo.getWidth()  + 30 )), 30, gRenderer);
+	// Check for game oer conditions
+	game_over_ai(invaders, player);
+	
 }
 
-// *** END Invaders Class ***
+// Renders the game ove screen
+void game_state_game_over(Player * player, SDL_Color textColor){
+	//Apply the home screen background image
+	gBackgroundTexture.render(0, 0, gRenderer);
+
+	//Render text
+	gTitleTexture.loadFromRenderedText( "Game Over", textColor, "fonts/SHOWG.TTF", 48 , gRenderer, gFont);
+    gTitleTexture.render( ( SCREEN_WIDTH - gTitleTexture.getWidth() ) / 2, ( SCREEN_HEIGHT / 5 - gTitleTexture.getHeight() ), gRenderer);
+	std::stringstream gameInfo;
+	gameInfo.str("");
+	gameInfo << "Score: " << player->getScore();
+ 	gGameInfo.loadFromRenderedText( gameInfo.str(), textColor, "fonts/SHOWG.TTF", 20, gRenderer, gFont);
+    gGameInfo.render(( SCREEN_WIDTH - gGameInfo.getWidth()) / 2, ( SCREEN_HEIGHT / 5 + 10), gRenderer);
+	gOtherTextTexture.loadFromRenderedText("Press SPACE to play again", textColor, "fonts/ANTQUAB.TTF", 32, gRenderer, gFont);
+	gOtherTextTexture.render( ( SCREEN_WIDTH - gOtherTextTexture.getWidth() ) / 2, ( SCREEN_HEIGHT * 0.8), gRenderer);
+}
 
 //Determine for game over event
-void game_over_ai() {
+void game_over_ai(std::vector<std::vector<Enemy*>> & invaders, Player * player) {
 	
-	if (player.lives == 0 || enemy_player_collision() || get_alive_invaders() == 0 ) {		
+	if (player->getLives() == 0 || Enemy::player_collision(invaders, player) || invaders.empty() ) {		
 		game_state = game_over;
 	} 
 }
@@ -649,10 +421,15 @@ int main( int argc, char* args[] )
 	if ( !init() ) {
 		printf( "Failed to initialize!\n" );
 	} else {
-		//Initiate objects
-		init_player();
-		init_invaders();
+		//Initiate player
+		Player * player = Player::newPlayer(&gSpriteSheetTexture);
 
+		//Initiate invaders
+		enemy_direction = right;
+		std::vector<std::vector<Enemy*>> invaders =			std::vector<std::vector<Enemy*>>();
+ 		Enemy::init(invaders);
+
+		//Initiate bullets
         std::vector<Bullet*> bullets = std::vector<Bullet*>();
 
 		game_state = start;		
@@ -684,22 +461,26 @@ int main( int argc, char* args[] )
 							switch (e.key.keysym.sym) {
 								// Left
 								case SDLK_LEFT:
-									move_player(left);
+									if (player->getHitbox().x > 0) {
+										player->move(LGVector2D(-5, 0));
+									}
 									break;
 								// Right
 								case SDLK_RIGHT:
-									move_player(right);
+									if (player->getHitbox().x + player->WIDTH < SCREEN_WIDTH){
+										player->move(LGVector2D(5, 0));
+									}
 									break;
 								// Space
 								case SDLK_SPACE:	
 									if (game_state == start) {
 										game_state = game;
 									} else if (game_state == game){
-										player_shoot(bullets);
+										player->shoot(bullets);
 									} else if (game_state == game_over) {										
 										SDL_RenderClear(gRenderer);
-										init_player();
-										init_invaders();
+										Player * player = Player::newPlayer(&gSpriteSheetTexture);										
+ 										Enemy::init(invaders);
 										game_state = game;
 									}
 									break;
@@ -710,100 +491,25 @@ int main( int argc, char* args[] )
 			}
 			if (game_state == start) {
 
-				//Apply the home screen background image
-				gBackgroundTexture.render(0, 0, gRenderer);
-
-				//Render text
-				gTitleTexture.loadFromRenderedText( "Space Invaders", textColor, "fonts/SHOWG.TTF", 48 , gRenderer, gFont);
-				gOtherTextTexture.loadFromRenderedText("Press SPACE to continue", textColor, "fonts/ANTQUAB.TTF", 32, gRenderer, gFont);
-                gTitleTexture.render( ( SCREEN_WIDTH - gTitleTexture.getWidth() ) / 2, ( SCREEN_HEIGHT / 5 - gTitleTexture.getHeight() ), gRenderer);
-				gOtherTextTexture.render( ( SCREEN_WIDTH - gOtherTextTexture.getWidth() ) / 2, ( SCREEN_HEIGHT * 0.8), gRenderer);
+				game_state_start(textColor);
 
 			} else if (game_state == game) {
 
-				// Draw objects		
-				draw_player(player.hitbox);
-                draw_invaders();
-                
-                //drawing bullets, maybe try to combine them? can use simple enum to distinguish between type of bullets
-                for (std::vector<Bullet*>::iterator i = bullets.begin(); i != bullets.end(); ++i) {
-                    Bullet * bullet = *i;
-                    bullet->draw(gRenderer);
-                }
-
-				// Checks for collision
-				enemy_hit_collision(bullets);
-				player_hit_collision(bullets);
-				enemy_player_collision();
-
-				// Move objects
-				move_invaders(invaders.speed);
-
-                //move bullets
-                for (std::vector<Bullet*>::iterator it = bullets.begin(); it != bullets.end(); ) {
-                    Bullet * bullet = *it;
-                    
-                    switch (bullet->getType()) {
-                        case Bullet::Player:
-                            bullet->move(LGVector2D(0, -5));
-                            break;
-                        case Bullet::Enemy:
-                            bullet->move(LGVector2D(0, 5));
-                            break;
-                        default:
-                            break;
-                    }
-                    
-                    
-                    SDL_Rect hitbox = bullet->getHitbox();
-                    if (hitbox.y <= 0 ||
-                        hitbox.y + hitbox.h >= SCREEN_HEIGHT)
-                    {
-                        delete bullet;
-                        bullets.erase(it);
-
-                    } else {
-                        ++it;
-                    }
-                    
-                }
-
-				// Invaderes shoot
-				enemy_shoot(bullets);
-				
-				// Render text
-				std::stringstream gameInfo;
-				gameInfo.str("");
-				gameInfo << "Lives: " << player.lives - 1 << " Score: " << player.score;
- 				gGameInfo.loadFromRenderedText( gameInfo.str(), textColor, "fonts/SHOWG.TTF", 20, gRenderer, gFont);
-                gGameInfo.render(( SCREEN_WIDTH - ( gGameInfo.getWidth()  + 30 )), 30, gRenderer);
-				// Check for game oer conditions
-				game_over_ai();
-						 
+				game_state_game(bullets, invaders, player, textColor);
+									 
 				next_game_tick += 1000 / 30;
 				sleep = next_game_tick - SDL_GetTicks();
 
 				if ( sleep >= 0 ) {
 
-            		SDL_Delay(sleep);
-        		}
-			}
+					SDL_Delay(sleep);
+				}
 
+			}
 			else if (game_state == game_over){
 
-				//Apply the home screen background image
-				gBackgroundTexture.render(0, 0, gRenderer);
-
-				//Render text
-				gTitleTexture.loadFromRenderedText( "Game Over", textColor, "fonts/SHOWG.TTF", 48 , gRenderer, gFont);
-                gTitleTexture.render( ( SCREEN_WIDTH - gTitleTexture.getWidth() ) / 2, ( SCREEN_HEIGHT / 5 - gTitleTexture.getHeight() ), gRenderer);
-				std::stringstream gameInfo;
-				gameInfo.str("");
-				gameInfo << "Score: " << player.score;
- 				gGameInfo.loadFromRenderedText( gameInfo.str(), textColor, "fonts/SHOWG.TTF", 20, gRenderer, gFont);
-                gGameInfo.render(( SCREEN_WIDTH - gGameInfo.getWidth()) / 2, ( SCREEN_HEIGHT / 5 + 10), gRenderer);
-				gOtherTextTexture.loadFromRenderedText("Press SPACE to play again", textColor, "fonts/ANTQUAB.TTF", 32, gRenderer, gFont);
-				gOtherTextTexture.render( ( SCREEN_WIDTH - gOtherTextTexture.getWidth() ) / 2, ( SCREEN_HEIGHT * 0.8), gRenderer);
+				game_state_game_over(player, textColor);
+				
 			}
 			//Update screen
 			SDL_RenderPresent( gRenderer );
